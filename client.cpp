@@ -7,6 +7,7 @@
 #include <string.h>
 #include <string>
 #include <vector>
+#include <fstream>
 
 using namespace std;
 
@@ -69,6 +70,13 @@ string Analysis(string userInput){
 }
 int main()
 {
+    std::ofstream out;
+    std::ofstream file("/Users/dmitrikovalenko/SocketServer/Logger.txt", std::ios_base::out | std::ios_base::app);
+    out.open("/Users/dmitrikovalenko/SocketServer/Logger.txt");
+    if (out.is_open())
+    {
+        out << "Hello World!" << std::endl;
+    }
     //	Create a socket
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock == -1)
@@ -101,15 +109,18 @@ int main()
         //		Enter lines of text
         cout << "> ";
         getline(cin, userInput);
+        out << "CLIENT> " << userInput << std::endl;
         userInput = Analysis(userInput);
         if(toStop == true){
-            std::cout << "You chose to stop!";
+            out << "CLIENT> Chose to stop!" << std::endl;
+            std::cout << "You chose to stop!" << std::endl;
             continue;
         }
         //		Send to server
         int sendRes = send(sock, userInput.c_str(), userInput.size() + 1, 0);
         if (sendRes == -1)
         {
+            out << "CLIENT> Could not send to server! Whoops!\r\n";
             cout << "Could not send to server! Whoops!\r\n";
             continue;
         }
@@ -119,11 +130,13 @@ int main()
         int bytesReceived = recv(sock, buf, 4096, 0);
         if (bytesReceived == -1)
         {
+            out << "There was an error getting response from server\r\n";
             cout << "There was an error getting response from server\r\n";
         }
         else
         {
             //		Display response
+            out << "CLIENT Get> " << string(buf, bytesReceived) << "\r\n";
             cout << "SERVER> " << string(buf, bytesReceived) << "\r\n";
         }
     } while(!toStop);

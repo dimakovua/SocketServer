@@ -3,3 +3,5 @@ servern
 server
 NewServer.cpp
 .DS_Store
+Logger.txt
+LoggerServer.txt

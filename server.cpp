@@ -8,8 +8,9 @@
 #include <string>
 #include <filesystem>
 #include <vector>
+#include <fstream>
 namespace fs = std::filesystem;
-std::string Answering(char (&buf)[4096], int bytesRecv){
+std::string Answering(char (&buf)[4096], int bytesRecv, std::ofstream& out){
     std::string tmp = "Unknown command!";
     if(buf[0] == 'g' && buf[1] == '|'){
         tmp = "";
@@ -47,12 +48,21 @@ std::string Answering(char (&buf)[4096], int bytesRecv){
         for(auto i : list_of_files){
             checker = 1;
             for(auto k : list_of_filters){
+                out << "Searching " << k << " in " << i << std::endl;
                 if(i.find(k) == std::string::npos){
+                    out << "There isn't " << k << " in " << i << std::endl;
                     checker = 0;
+                }
+                else{
+                    out << "There is " << k << " in " << i << std::endl;
                 }
             }
             if(checker == 1){
+                out << i << " is OK!" << std::endl;
                 finally.push_back(i);
+            }
+            else{
+                out << i << " is NOT OK!((((" << std::endl;
             }
         }
         if(finally.size() != 0){
@@ -69,8 +79,16 @@ std::string Answering(char (&buf)[4096], int bytesRecv){
 }
 
 int main(){
+    std::ofstream out;
+    
+    out.open("/Users/dmitrikovalenko/SocketServer/LoggerServer.txt");
+    if (out.is_open())
+    {
+        out << "Hello World!" << std::endl;
+    }
     int listening = socket(AF_INET, SOCK_STREAM, 0);
     if (listening < 0){
+        out << "SERVER> Listening error!" << std::endl;
         std::cerr << "Listening error!";
         return -1;
     }
@@ -80,11 +98,13 @@ int main(){
     inet_pton(AF_INET, "0.0.0.0", &hint.sin_addr);
     
     if(bind(listening, (sockaddr*)&hint, sizeof(hint)) == -1){
+        out << "SERVER> Bind Error!" << std::endl;
         std::cerr << "Bind Error!";
         return -2;
     }
 
     if(listen(listening, SOMAXCONN) < 0){
+        out << "SERVER> Listen Error!" << std::endl;
         std::cerr << "Listen Error!";
         return -3;
     }
@@ -96,6 +116,7 @@ int main(){
 
     int clientSocket = accept(listening, (sockaddr*)&client, &client_size);
     if(clientSocket < 0){
+        out << "SERVER> Accepting Error!" << std::endl;
         std::cerr << "Accepting error!";
         return -4;
     }
@@ -106,10 +127,12 @@ int main(){
 
     int result = getnameinfo((sockaddr*)&client, sizeof(client), host, NI_MAXHOST, svc, NI_MAXSERV, 0);
     if(result){
-        std::cout << host << " connected on" << svc<<"\n";
+        out <<"SERVER> " << host << " connected on " << svc<< std::endl;
+        std::cout << host << " connected on " << svc<<"\n";
     }
     else{
         inet_ntop(AF_INET, &client.sin_addr, host, NI_MAXHOST);
+        out << "SERVER> " << host << " connected on " << ntohs(client.sin_port) << std::endl;
         std::cout << host << " connected on" << ntohs(client.sin_port) << "\n";
     }
     char buf[4096];
@@ -120,20 +143,25 @@ int main(){
         int bytesRecv = recv(clientSocket, buf, 4096, 0);
         if(bytesRecv < 0 ){
             std::cerr << "There is a connection issue!\n"; 
+            out << "SERVER> There is a connection issue!"<< std::endl; 
             break;
         }
         if(bytesRecv == 0){
             std::cout << "The client disconnected!\n";
+            out << "SERVER> The client disconnected!"<< std::endl; 
             break;
         }
         else{
             std::cout << "Recieved: " << std::string(buf, 0, bytesRecv) << "\n";
+            out << "SERVER> Recieved: " << std::string(buf, 0, bytesRecv) << std::endl;
             //Final part
-            std::string stringAnswer = Answering(buf, bytesRecv);
+            std::string stringAnswer = Answering(buf, bytesRecv, out);
             int answerSize = stringAnswer.length();
             char answer[answerSize+1];
+            //out << "SERVER> Answering: " << stringAnswer << std::endl;
             strcpy(answer, stringAnswer.c_str());
             send(clientSocket, answer, answerSize, 0);
+            out << "SERVER> Answer has been sent!" << std::endl;
         }
     }
     return 0;
